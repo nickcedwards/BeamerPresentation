@@ -22,7 +22,8 @@ class BeamerPresentation:
         for elem in self.elements:
             bodytex += elem.tex() + "\n"
         self.content['BODY'] = bodytex
-        templateReplace('beamer_pres.template.tex', self.content, filename )
+        template = ".".join(__file__.split("/")[:-1]) + "beamer_pres.template.tex"
+        templateReplace(template, self.content, filename )
 
     def writePdf(self, filename=''):
         if '.pdf' in filename: filename=filename.replace('.pdf','')
