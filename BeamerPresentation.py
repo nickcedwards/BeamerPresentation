@@ -4,7 +4,7 @@ import os
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class BeamerPresentation:
 
-    def __init__(self, title, name='Nick Edwards', institute='University of Edinburgh', email='nedwards@cern.ch', shorttitle=''):
+    def __init__(self, title, name='Nick Edwards', institute='University of Edinburgh', email='nedwards@cern.ch', shorttitle='', headers=''):
         self.content = {}
         if not shorttitle: shorttile=title
         self.content['TITLE'] = title
@@ -12,6 +12,7 @@ class BeamerPresentation:
         self.content['INSTITUTE'] = institute
         self.content['EMAIL'] = email
         self.content['SHORTTITLE'] = shorttitle
+        self.content['HEADERS'] = headers
         self.elements = []
 
     def add(self, element):
@@ -22,13 +23,13 @@ class BeamerPresentation:
         for elem in self.elements:
             bodytex += elem.tex() + "\n"
         self.content['BODY'] = bodytex
-        template = ".".join(__file__.split("/")[:-1]) + "beamer_pres.template.tex"
+        template = "/".join(os.path.realpath(__file__).split("/")[:-1]) + "/beamer_pres.template.tex"
         templateReplace(template, self.content, filename )
 
     def writePdf(self, filename=''):
         if '.pdf' in filename: filename=filename.replace('.pdf','')
         self.writeTex(filename+'.tex')
-        os.system('pdflatex '+filename+'.tex')
+        os.system('pdflatex -shell-escape '+filename+'.tex')
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -53,26 +54,44 @@ class BeamerSubSection:
         return "\\subsection{%s}" % (self.title)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class BeamerTOC:
+
+    def __init__(self, size="small"):
+        self.size = size
+    
+    def tex(self):
+        texstr = ""
+        texstr += "\n\\begin{frame}\n"
+        texstr += "\\"+self.size+"\n"
+        texstr += "\\frametitle{Table of Contents}\n"
+        texstr += "\\tableofcontents[currentsection]\n"
+        texstr += "\\end{frame}\n"
+        return texstr
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class BeamerSlide:
 
     def __init__(self, title):
-        self.texstr = ""
+        self.texstr = "\\small\n"
         self.title = title
         pass
 
     def addText(self, text):
         self.texstr +=text+"\n"
 
-    def addBullets(self, bullets):
+    def addBullets(self, bullets, size="small"):
         self.texstr += "\\begin{itemize}\n"
+        self.texstr += "\\"+size+"\n"
         for bullet in bullets:
             self.texstr += "\\item "+bullet+"\n"
         self.texstr += "\\end{itemize}\n"
 
     def addFigure(self, file, opts="", caption=None):
-        self.texstr += "\\begin{figure}\n\\includegraphics[%s]{%s}\n" % (opts, file)
+        self.texstr += "\\begin{figure}\n\\includegraphics[%s]{{%s}}\n" % (opts, file)
         if caption: self.texstr += "\\caption{%s}" % (caption,)
         self.texstr += "\\end{figure}\n"
 
@@ -80,7 +99,7 @@ class BeamerSlide:
         if nFigs==1:
             return 0.9
         elif nFigs==2:
-            return 0.47
+            return 0.55
         elif nFigs==3:
             return 0.32
         elif nFigs==4:
@@ -92,17 +111,23 @@ class BeamerSlide:
         else:
             return 0.47
 
-    def addFigures(self, files, captions=[], caption=None):
+    def addFigures(self, files, captions=[], caption=None, ncol=0):
         self.texstr += "\\begin{figure}\n"
         if not len(captions):
             captions = ["",]*len(files)
         if len(captions) != len(files):
             raise RuntimeError("captions argument must be list of same length as files, or else an empty list")
         opts =  "width=%.2f\\textwidth" % self._getFigureWidth(len(files))
-        for file, fig_caption in zip(files, captions):
+        for file, fig_caption, iFig in zip(files, captions, range(len(files))):
             if fig_caption:
                 fig_caption = "[%s]" % fig_caption
-            self.texstr += "\\subfigure%s{\\includegraphics[%s]{%s}}\n" % (fig_caption, opts, file)
+            self.texstr += "\\subfigure%s{\\includegraphics[%s]{%s}}" % (fig_caption, opts, file)
+            # Add newline if ncol not specified (let tex figure it out)
+            if not ncol:
+                self.texstr += "\n"
+            else:
+                if not (iFig+1) % ncol:
+                    self.texstr += "\n"
         if caption: self.texstr += "\\caption{%s}" % (caption,)
         self.texstr += "\\end{figure}\n"
 
